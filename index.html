@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>擬真語音互動測驗：Pets Over Kids: Taiwan's Future</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Confetti Library for Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', 'Noto Sans TC', sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        /* Smooth Highlighting for Karaoke Mode */
+        .highlight-text {
+            background-color: #fef3c7; /* amber-100 */
+            color: #d97706; /* amber-600 */
+            padding: 2px 4px;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        /* Quiz Styles */
+        .quiz-option {
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .quiz-option:hover:not(.disabled) {
+            background-color: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        .quiz-option.correct {
+            background-color: #ecfdf5 !important;
+            border-color: #10b981 !important;
+            color: #065f46;
+        }
+        .quiz-option.wrong {
+            background-color: #fef2f2 !important;
+            border-color: #ef4444 !important;
+            color: #991b1b;
+            opacity: 0.8;
+        }
+        .quiz-option.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .explanation-box {
+            display: none; /* Hidden by default */
+            margin-top: 10px;
+            font-size: 0.95em;
+            color: #4b5563;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #6366f1;
+            background-color: #f8fafc;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Interactive Vocabulary Styles */
+        .vocab-word {
+            border-bottom: 2px dotted #818cf8;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            color: #1e40af;
+            font-weight: 500;
+        }
+        .vocab-word:hover {
+            background-color: #e0e7ff;
+            color: #1e3a8a;
+        }
+        .vocab-word:active {
+            transform: scale(0.95);
+        }
+
+        /* Tooltip Style */
+        .vocab-tooltip {
+            visibility: hidden;
+            width: max-content;
+            min-width: 120px;
+            background-color: #1f2937;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 100;
+            bottom: 140%; /* Position above */
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            font-size: 0.9rem;
+            pointer-events: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            line-height: 1.4;
+        }
+        .vocab-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+        .vocab-word:hover .vocab-tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+        
+        /* POS Tag Style in Tooltip */
+        .pos-tag {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            background-color: #4f46e5;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-right: 6px;
+            font-weight: bold;
+            color: #e0e7ff;
+        }
+
+        /* Translation Text Style */
+        .translation-text {
+            display: block;
+            font-size: 0.9em;
+            color: #6b7280;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            padding-left: 8px;
+            border-left: 3px solid #e5e7eb;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        .translation-text.hidden {
+            display: none;
+        }
+        
+        /* Audio Wave Animation */
+        .equalizer {
+            display: flex;
+            align-items: flex-end;
+            height: 20px;
+            gap: 2px;
+        }
+        .bar {
+            width: 4px;
+            background: #fff;
+            animation: bounce 0ms infinite ease-in-out alternate;
+        }
+        .playing .bar {
+            animation-duration: 400ms;
+        }
+        .playing .bar:nth-child(1) { animation-delay: -0.2s; }
+        .playing .bar:nth-child(2) { animation-delay: -0.4s; }
+        .playing .bar:nth-child(3) { animation-delay: -0.6s; }
+        .playing .bar:nth-child(4) { animation-delay: -0.8s; }
+        @keyframes bounce {
+            0% { height: 3px; opacity: 0.5; }
+            100% { height: 20px; opacity: 1; }
+        }
+        
+        .hidden-content {
+            filter: blur(12px);
+            user-select: none;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen pb-12">
+
+    <!-- Navbar / Audio Player Sticky Header -->
+    <div class="sticky top-0 z-50 bg-indigo-700 text-white shadow-xl transition-all duration-300" id="audio-player-bar">
+        <div class="max-w-4xl mx-auto px-4 py-3">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-3">
+                
+                <!-- Left: Title & Status -->
+                <div class="flex items-center gap-3 w-full md:w-auto justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
+                            <i class="fas fa-headphones-alt text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-sm font-bold text-indigo-100 uppercase tracking-wide">Listening Quiz</h1>
+                            <div class="text-xs text-indigo-200 flex items-center gap-1" id="voice-indicator">
+                                <i class="fas fa-robot"></i> Initializing Voice...
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile Play Button -->
+                    <button onclick="togglePlay()" class="md:hidden w-10 h-10 bg-white text-indigo-700 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition">
+                        <i class="fas fa-play" id="mobile-play-icon"></i>
+                    </button>
+                </div>
+
+                <!-- Center: Controls -->
+                <div class="flex items-center gap-4">
+                    <!-- Rewind -->
+                    <button onclick="restartAudio()" class="text-indigo-200 hover:text-white transition" title="Restart">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    
+                    <!-- Main Play Button (Desktop) -->
+                    <button onclick="togglePlay()" class="hidden md:flex w-12 h-12 bg-white text-indigo-700 rounded-full shadow-lg items-center justify-center hover:scale-105 transition hover:shadow-white/20">
+                        <i class="fas fa-play text-xl ml-1" id="main-play-icon"></i>
+                    </button>
+
+                    <!-- Visualizer -->
+                    <div class="equalizer" id="visualizer">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    </div>
+                </div>
+
+                <!-- Right: Settings -->
+                <div class="flex items-center gap-2 text-sm w-full md:w-auto justify-center md:justify-end border-t md:border-t-0 border-indigo-600 pt-2 md:pt-0 mt-2 md:mt-0">
+                    
+                    <!-- Translation Toggle -->
+                    <button onclick="toggleTranslation()" id="toggle-trans-btn" class="flex items-center gap-2 bg-indigo-800 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold transition shadow border border-indigo-500">
+                        <i class="fas fa-language"></i> <span>翻譯</span>
+                    </button>
+
+                    <!-- Toggle Text -->
+                    <button onclick="toggleText()" id="toggle-text-btn" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg font-bold transition shadow">
+                        <i class="fas fa-eye-slash"></i> <span>Hide Text</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Progress Bar -->
+        <div class="w-full bg-indigo-900 h-1.5">
+            <div id="progress-bar" class="h-full bg-amber-400 w-0 transition-all duration-300"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-3xl mx-auto p-4 md:p-6 space-y-8">
+        
+        <!-- Image Card -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200">
+             <!-- Image with fallback -->
+             <div class="w-full h-64 md:h-80 bg-gray-200 relative overflow-hidden group">
+                <img 
+                    src="images/pets_vs_kids.jpg" 
+                    alt="A young couple walking a dog instead of a baby stroller in Taipei" 
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1548199973-03cce0bbc87b?q=80&w=1200&auto=format&fit=crop';"
+                >
+                
+                <!-- Dark Gradient Overlay for better text readability -->
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
+
+                <div class="absolute bottom-4 left-4 right-4 text-white">
+                    <div class="flex items-center gap-2 text-sm font-medium opacity-90 backdrop-blur-sm bg-black/30 w-fit px-3 py-1 rounded-full">
+                        <i class="fas fa-paw"></i> Listening Focus: Pets Over Kids - Taiwan's Challenge
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Content Area -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 md:p-8 border border-gray-200 relative">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-4 border-b">Pets Over Kids: Taiwan's Demographic Crisis</h2>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 text-sm text-blue-700">
+                <i class="fas fa-mouse-pointer mr-1"></i> <strong>Tip:</strong> 點擊單字可聽發音並查看解釋 (Click words to hear pronunciation)。
+            </div>
+
+            <!-- Hidden Message Overlay -->
+            <div id="hidden-overlay" class="hidden absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center rounded-2xl backdrop-blur-sm transition-all">
+                <div class="bg-indigo-100 p-6 rounded-full mb-4">
+                    <i class="fas fa-ear-listen text-4xl text-indigo-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Listen Carefully</h3>
+                <p class="text-gray-600 mb-6 text-center max-w-sm">The text is hidden to challenge your listening skills. Try to answer the questions by listening only!</p>
+                <button onclick="toggleText()" class="bg-indigo-600 text-white px-6 py-2 rounded-full hover:bg-indigo-700 transition shadow-lg">
+                    Show Text
+                </button>
+            </div>
+
+            <!-- Article Container (Sentences will be injected here via JS for control) -->
+            <div id="article-display" class="prose max-w-none text-gray-700 text-lg leading-relaxed space-y-4">
+                <!-- Content injected by JS -->
+            </div>
+        </div>
+
+        <!-- Quiz Area -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 md:p-8 border border-gray-200">
+            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <span class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">
+                    <i class="fas fa-pen"></i>
+                </span>
+                Comprehension Quiz
+            </h3>
+            
+            <form id="quizForm" class="space-y-8">
+                <!-- Questions will be generated here -->
+            </form>
+
+            <div class="mt-8 pt-6 border-t border-gray-100 flex flex-col items-center">
+                <button type="button" onclick="showFinalScore()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold py-3 px-10 rounded-full shadow-lg transition transform hover:-translate-y-1 active:scale-95">
+                    Show Final Score
+                </button>
+                
+                <div id="score-card" class="hidden mt-6 text-center w-full bg-indigo-50 p-6 rounded-xl border border-indigo-100 animate-fade-in">
+                    <p class="text-gray-500 text-sm uppercase font-bold tracking-wider">Your Result</p>
+                    <div class="text-5xl font-extrabold text-indigo-600 my-2" id="final-score">0</div>
+                    <p id="feedback-msg" class="text-gray-700 font-medium"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data & State ---
+        
+        // Structured Article Data with Translations
+        const articleData = [
+            { en: "In recent years, a quiet but significant revolution has taken place in Taiwanese society.", zh: "近年來，台灣社會發生了一場安靜但重大的革命。" },
+            { en: "If you walk through the parks of Taipei or Kaohsiung on a weekend, you might notice something interesting.", zh: "如果你在週末走過台北或高雄的公園，你可能會注意到一些有趣的事情。" },
+            { en: "Instead of pushing baby strollers, more and more young couples are pushing strollers filled with dogs or cats.", zh: "越來越多的年輕夫婦推著裝滿狗或貓的推車，而不是嬰兒車。" },
+            { en: "According to recent statistics, the number of pets in Taiwan has officially exceeded the number of children under the age of 14.", zh: "根據最新的統計數據，台灣的寵物數量已經正式超過了14歲以下兒童的數量。" },
+            { en: "This phenomenon reflects a major shift in lifestyle and priorities among the younger generation.", zh: "這種現象反映了年輕一代在生活方式和優先順序上的重大轉變。" },
+            
+            { en: "There are several reasons for this dramatic change.", zh: "造成這種劇烈變化的原因有幾個。" },
+            { en: "First and foremost is the economic pressure.", zh: "首要原因是經濟壓力。" },
+            { en: "Housing prices in Taiwan have skyrocketed, while wages have remained relatively stagnant for years.", zh: "台灣的房價飆升，而薪資多年來卻相對停滯不前。" },
+            { en: "Raising a child requires a massive financial commitment, including education, healthcare, and daily expenses.", zh: "撫養一個孩子需要巨大的財務承諾，包括教育、醫療和日常開支。" },
+            { en: "For many young people, the cost is simply too high.", zh: "對許多輕人來說，這個代價實在太高了。" },
+            { en: "In contrast, owning a pet, often called a \"fur kid,\" offers companionship and emotional support without the overwhelming burden of tuition fees.", zh: "相比之下，養寵物（通常被稱為「毛小孩」）提供了陪伴和情感支持，卻沒有學費帶來的巨大負擔。" },
+            
+            { en: "The rise of the \"fur kid\" culture has created a booming pet economy.", zh: "「毛小孩」文化的興起創造了蓬勃發展的寵物經濟。" },
+            { en: "Pet shops, grooming salons, and animal hospitals are opening everywhere, often replacing traditional businesses like stationery stores or kindergartens.", zh: "寵物店、美容沙龍和動物醫院遍地開花，經常取代了文具店或幼兒園等傳統商家。" },
+            { en: "Owners treat their pets like family members, buying them expensive food, clothes, and even insurance.", zh: "飼主像對待家庭成員一樣對待他們的寵物，為牠們購買昂貴的食物、衣服，甚至保險。" },
+            { en: "However, while the pet industry is thriving, the decline in the birth rate poses a serious threat to Taiwan's future.", zh: "然而，雖然寵物產業正在蓬勃發展，但出生率的下降對台灣的未來構成了嚴重威脅。" },
+            
+            { en: "Taiwan is rapidly becoming a \"super-aged society.\"", zh: "台灣正迅速成為一個「超高齡社會」。" },
+            { en: "This means that the percentage of elderly people is increasing while the workforce is shrinking.", zh: "這意味著老年人口的比例正在增加，而勞動力卻在萎縮。" },
+            { en: "With fewer children being born, there will be fewer workers in the future to support the economy and pay taxes.", zh: "隨著出生兒童的減少，未來將會有更少的工人來支持經濟和繳納稅款。" },
+            { en: "This could lead to a crisis in the pension system and healthcare services.", zh: "這可能會導致退休金制度和醫療服務的危機。" },
+            { en: "Schools are already feeling the impact, with many merging or closing down due to a lack of students.", zh: "學校已經感受到了這種影響，許多學校因為缺乏學生而合併或關閉。" },
+            
+            { en: "The government has tried to encourage childbirth by offering subsidies and improving childcare facilities.", zh: "政府試圖透過提供補貼和改善育兒設施來鼓勵生育。" },
+            { en: "However, financial incentives alone may not be enough to reverse the trend.", zh: "然而，僅靠財政獎勵可能不足以扭轉這一趨勢。" },
+            { en: "Societal values have changed, and many people now value personal freedom and career development over traditional family life.", zh: "社會價值觀已經改變，許多人現在更重視個人自由和職業發展，而不是傳統的家庭生活。" },
+            { en: "While pets bring joy and love to many households, Taiwan must find a sustainable way to balance individual happiness with the long-term needs of the nation.", zh: "雖然寵物為許多家庭帶來了歡樂和愛，但台灣必須找到一種永續的方式，在個人幸福與國家長期需求之間取得平衡。" }
+        ];
+
+        const quizData = [
+            { id: 'q1', q: "1. What is the main trend described in the article?", options: {A: "More people are moving to the countryside.", B: "The number of pets has exceeded the number of children.", C: "Taiwanese people are stopping work.", D: "Housing prices are going down."}, ans: 'B', expl: "文章主旨是台灣寵物數量正式超過14歲以下兒童的現象 (pets... exceeded the number of children)。" },
+            { id: 'q2', q: "2. What is a 'fur kid'?", options: {A: "A child wearing a coat.", B: "A type of toy.", C: "A pet treated like a child.", D: "A wild animal."}, ans: 'C', expl: "文中提到寵物常被稱為 'fur kid' (毛小孩)，並被視為家庭成員。" },
+            { id: 'q3', q: "3. According to the text, why do young people prefer pets over children?", options: {A: "Pets are smarter.", B: "Economic pressure and high costs of raising children.", C: "Children are not allowed in apartments.", D: "Pets can work and earn money."}, ans: 'B', expl: "第二段提到經濟壓力 (economic pressure) 和撫養小孩的巨大財務承諾是主因。" },
+            { id: 'q4', q: "4. What has happened to housing prices and wages in Taiwan?", options: {A: "Both have increased equally.", B: "Housing prices dropped, wages rose.", C: "Housing prices skyrocketed, wages remained stagnant.", D: "Both have decreased."}, ans: 'C', expl: "文中描述：Housing prices... skyrocketed, while wages have remained relatively stagnant." },
+            { id: 'q5', q: "5. Which industry is described as 'booming'?", options: {A: "The toy industry.", B: "The pet economy.", C: "The stationery industry.", D: "The kindergarten industry."}, ans: 'B', expl: "第三段開頭提到：The rise of the 'fur kid' culture has created a booming pet economy." },
+            { id: 'q6', q: "6. What is happening to some schools in Taiwan?", options: {A: "They are becoming pet hotels.", B: "They are merging or closing due to lack of students.", C: "They are expanding rapidly.", D: "They only accept foreign students."}, ans: 'B', expl: "第四段結尾提到學校因缺乏學生而合併或關閉 (merging or closing down due to a lack of students)。" },
+            { id: 'q7', q: "7. What defines a 'super-aged society'?", options: {A: "Everyone is over 100 years old.", B: "A society with very fast cars.", C: "A high percentage of elderly people and shrinking workforce.", D: "A society with no children at all."}, ans: 'C', expl: "文中解釋超高齡社會意味著老年人口比例增加，勞動力萎縮。" },
+            { id: 'q8', q: "8. What future crisis is mentioned regarding the economy?", options: {A: "Too many workers.", B: "Pension system and healthcare crisis.", C: "Too much tax money.", D: "Food shortage."}, ans: 'B', expl: "勞動力減少可能導致退休金制度和醫療服務的危機 (crisis in the pension system and healthcare services)。" },
+            { id: 'q9', q: "9. How has the government tried to solve the birth rate problem?", options: {A: "By banning pets.", B: "By offering subsidies and improving childcare.", C: "By forcing people to marry.", D: "By closing hospitals."}, ans: 'B', expl: "政府試圖透過提供補貼 (offering subsidies) 和改善育兒設施來鼓勵生育。" },
+            { id: 'q10', q: "10. Besides money, what else has caused the low birth rate?", options: {A: "Bad weather.", B: "Lack of food.", C: "Changes in societal values and desire for freedom.", D: "Too many holidays."}, ans: 'C', expl: "最後一段提到社會價值觀改變，人們更重視個人自由 (value personal freedom)。" }
+        ];
+
+        // Extended Vocabulary Dictionary with Part of Speech (POS)
+        const vocabulary = {
+            "revolution": { pos: "n.", trans: "革命；重大變革" },
+            "significant": { pos: "adj.", trans: "重大的；顯著的" },
+            "strollers": { pos: "n.", trans: "嬰兒推車" },
+            "statistics": { pos: "n.", trans: "統計數據" },
+            "exceeded": { pos: "v.", trans: "超過" },
+            "phenomenon": { pos: "n.", trans: "現象" },
+            "priorities": { pos: "n.", trans: "優先事項" },
+            "economic": { pos: "adj.", trans: "經濟的" },
+            "pressure": { pos: "n.", trans: "壓力" },
+            "skyrocketed": { pos: "v.", trans: "暴漲；飆升" },
+            "wages": { pos: "n.", trans: "薪資" },
+            "stagnant": { pos: "adj.", trans: "停滯的" },
+            "financial": { pos: "adj.", trans: "財務的" },
+            "commitment": { pos: "n.", trans: "承諾；投入" },
+            "expenses": { pos: "n.", trans: "開支" },
+            "companionship": { pos: "n.", trans: "陪伴" },
+            "emotional": { pos: "adj.", trans: "情感的" },
+            "overwhelming": { pos: "adj.", trans: "巨大的；壓倒性的" },
+            "burden": { pos: "n.", trans: "負擔" },
+            "tuition": { pos: "n.", trans: "學費" },
+            "booming": { pos: "adj.", trans: "蓬勃發展的" },
+            "grooming": { pos: "n.", trans: "美容(寵物)" },
+            "traditional": { pos: "adj.", trans: "傳統的" },
+            "insurance": { pos: "n.", trans: "保險" },
+            "thriving": { pos: "adj.", trans: "繁榮的" },
+            "decline": { pos: "n.", trans: "下降；衰退" },
+            "workforce": { pos: "n.", trans: "勞動力" },
+            "shrinking": { pos: "v.", trans: "縮減" },
+            "pension": { pos: "n.", trans: "退休金" },
+            "merging": { pos: "v.", trans: "合併" },
+            "subsidies": { pos: "n.", trans: "補貼" },
+            "incentives": { pos: "n.", trans: "誘因；獎勵" },
+            "reverse": { pos: "v.", trans: "扭轉" },
+            "societal": { pos: "adj.", trans: "社會的" },
+            "sustainable": { pos: "adj.", trans: "永續的" }
+        };
+
+        let synth = window.speechSynthesis;
+        let sentences = [];
+        let currentSentenceIndex = 0;
+        let isPlaying = false;
+        let textHidden = false;
+        let showTranslation = false;
+        let selectedVoice = null;
+        let userScore = 0; 
+        
+        // --- Web Audio API Context ---
+        let audioCtx;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+        
+        // --- Synthesized Sound Effects (No External Files Needed) ---
+        function playCorrectSound() {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1); 
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playFailSound() {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime); 
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3); 
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            renderArticle();
+            renderQuiz();
+            initVoice();
+        };
+
+        // --- 1. Smart Voice Engine (Neural Voice Engine) ---
+        function initVoice() {
+            const voiceStatus = document.getElementById('voice-indicator');
+            
+            const loadVoices = () => {
+                const voices = synth.getVoices();
+                if (voices.length > 0) {
+                    selectedVoice = voices.find(v => v.name === 'Google US English') || 
+                                    voices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural') && v.lang.includes('en-US')) ||
+                                    voices.find(v => (v.name.includes('Siri') || v.name.includes('Enhanced') || v.name.includes('Premium')) && v.lang.includes('en-US')) ||
+                                    voices.find(v => v.name === 'Samantha') || 
+                                    voices.find(v => v.lang === 'en-US');
+                    
+                    if (selectedVoice) {
+                        let displayName = selectedVoice.name
+                            .replace('Microsoft', '')
+                            .replace('Google', '')
+                            .replace('English', '')
+                            .replace(' United States', '')
+                            .replace('(Natural) - Online', 'Natural')
+                            .trim();
+                        voiceStatus.innerHTML = `<i class="fas fa-check-circle text-green-300"></i> Voice: ${displayName.substring(0, 20)}`;
+                    } else {
+                        voiceStatus.innerHTML = `<i class="fas fa-exclamation-circle text-yellow-300"></i> Standard Voice`;
+                    }
+                }
+            };
+            loadVoices();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
+
+        // --- 2. Render Article with Structured Data ---
+        function renderArticle() {
+            const displayArea = document.getElementById('article-display');
+            displayArea.innerHTML = '';
+            
+            let p = document.createElement('p');
+            displayArea.appendChild(p);
+            
+            sentences = []; // Reset sentences array
+            
+            articleData.forEach((item, index) => {
+                const spanEn = document.createElement('span');
+                
+                // Process words for dictionary lookup
+                spanEn.innerHTML = processWords(item.en);
+                
+                spanEn.id = `sent-${index}`;
+                spanEn.className = 'cursor-pointer hover:bg-gray-100 rounded transition leading-loose mr-1';
+                spanEn.onclick = (e) => {
+                    // Prevent playing full sentence if user clicked a vocab word
+                    if (e.target.classList.contains('vocab-word') || e.target.parentElement.classList.contains('vocab-word')) return;
+                    playFromSentence(index);
+                };
+                
+                // Add Sentence
+                p.appendChild(spanEn);
+                sentences.push({ text: item.en, id: `sent-${index}` });
+
+                // Add Translation (Hidden by default)
+                const divZh = document.createElement('div');
+                divZh.className = 'translation-text hidden';
+                divZh.innerText = item.zh;
+                p.appendChild(divZh);
+
+                // Paragraph break heuristic (every 5 sentences approx)
+                if(index > 0 && (index + 1) % 5 === 0) {
+                     p = document.createElement('p');
+                     displayArea.appendChild(p);
+                }
+            });
+        }
+
+        // Wrap words with definitions in a span
+        function processWords(text) {
+            const words = text.split(' ');
+            return words.map(word => {
+                const cleanWord = word.replace(/[.,!?;:()"]/g, "").toLowerCase();
+                const originalWord = word;
+                
+                if (vocabulary[cleanWord]) {
+                    const data = vocabulary[cleanWord];
+                    return `<span class="vocab-word" onclick="speakAndShowDef(event, '${cleanWord}')">${originalWord}<span class="vocab-tooltip"><span class="pos-tag">${data.pos}</span>${data.trans}</span></span>`;
+                }
+                return originalWord;
+            }).join(' ');
+        }
+        
+        function speakAndShowDef(e, word) {
+            e.stopPropagation(); // Stop the event from bubbling up to sentence click
+            
+            // Speak the word
+            synth.cancel(); // Stop current speech
+            const utterance = new SpeechSynthesisUtterance(word);
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.rate = 0.9; // Slower for single word
+            synth.speak(utterance);
+        }
+
+        function toggleTranslation() {
+            showTranslation = !showTranslation;
+            const transElements = document.querySelectorAll('.translation-text');
+            const btn = document.getElementById('toggle-trans-btn');
+            
+            transElements.forEach(el => {
+                if(showTranslation) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+
+            if(showTranslation) {
+                btn.classList.add('bg-indigo-600', 'ring-2', 'ring-indigo-300');
+                btn.innerHTML = '<i class="fas fa-check"></i> <span>隱藏翻譯</span>';
+            } else {
+                btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-300');
+                btn.innerHTML = '<i class="fas fa-language"></i> <span>顯示翻譯</span>';
+            }
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                pauseAudio();
+            } else {
+                playAudio();
+            }
+        }
+
+        function playAudio() {
+            isPlaying = true;
+            updatePlayBtn(true);
+            document.getElementById('visualizer').classList.add('playing');
+            
+            if (currentSentenceIndex >= sentences.length) {
+                currentSentenceIndex = 0;
+            }
+            speakSentence(currentSentenceIndex);
+        }
+
+        function speakSentence(index) {
+            if (!isPlaying || index >= sentences.length) {
+                if (index >= sentences.length) {
+                    isPlaying = false;
+                    updatePlayBtn(false);
+                    document.getElementById('visualizer').classList.remove('playing');
+                    currentSentenceIndex = 0;
+                    highlightSentence(-1);
+                }
+                return;
+            }
+
+            currentSentenceIndex = index;
+            highlightSentence(index);
+            updateProgressBar();
+
+            synth.cancel();
+
+            const text = sentences[index].text;
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.rate = 1.0; 
+            utterance.pitch = 1.05; 
+            
+            // Natural Pacing
+            utterance.onend = function() {
+                if (isPlaying) {
+                    setTimeout(() => {
+                        speakSentence(index + 1);
+                    }, 400); 
+                }
+            };
+            
+            utterance.onerror = function(e) {
+                console.error("Speech error", e);
+                isPlaying = false;
+                updatePlayBtn(false);
+            };
+
+            synth.speak(utterance);
+        }
+
+        function pauseAudio() {
+            isPlaying = false;
+            synth.cancel();
+            updatePlayBtn(false);
+            document.getElementById('visualizer').classList.remove('playing');
+        }
+
+        function restartAudio() {
+            synth.cancel();
+            currentSentenceIndex = 0;
+            updateProgressBar();
+            highlightSentence(-1);
+            if (isPlaying) {
+                setTimeout(() => speakSentence(0), 100);
+            }
+        }
+        
+        function playFromSentence(index) {
+            currentSentenceIndex = index;
+            isPlaying = true;
+            updatePlayBtn(true);
+            document.getElementById('visualizer').classList.add('playing');
+            speakSentence(index);
+        }
+
+        function updatePlayBtn(isPlay) {
+            const icons = [document.getElementById('main-play-icon'), document.getElementById('mobile-play-icon')];
+            icons.forEach(icon => {
+                if (isPlay) {
+                    icon.classList.remove('fa-play');
+                    icon.classList.add('fa-pause');
+                } else {
+                    icon.classList.remove('fa-pause');
+                    icon.classList.add('fa-play');
+                }
+            });
+        }
+
+        function highlightSentence(index) {
+            document.querySelectorAll('.highlight-text').forEach(el => el.classList.remove('highlight-text'));
+            
+            if (index >= 0 && index < sentences.length) {
+                const el = document.getElementById(sentences[index].id);
+                if (el) {
+                    el.classList.add('highlight-text');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+        
+        function updateProgressBar() {
+             const progress = ((currentSentenceIndex + 1) / sentences.length) * 100;
+             document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+
+        function toggleText() {
+            textHidden = !textHidden;
+            const overlay = document.getElementById('hidden-overlay');
+            const btn = document.getElementById('toggle-text-btn');
+            
+            if (textHidden) {
+                overlay.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-eye"></i> <span>Show Text</span>';
+                btn.classList.replace('bg-amber-500', 'bg-indigo-500');
+                btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-600');
+            } else {
+                overlay.classList.add('hidden');
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i> <span>Hide Text</span>';
+                btn.classList.replace('bg-indigo-500', 'bg-amber-500');
+                btn.classList.replace('hover:bg-indigo-600', 'hover:bg-amber-600');
+            }
+        }
+
+        // --- Revised Interactive Quiz Logic ---
+
+        function renderQuiz() {
+            const form = document.getElementById('quizForm');
+            form.innerHTML = '';
+            
+            quizData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-5 rounded-xl border border-gray-200 shadow-sm transition';
+                div.innerHTML = `
+                    <p class="font-bold text-gray-800 mb-4 text-lg">${item.q}</p>
+                    <div class="space-y-3" id="${item.id}-options">
+                        ${Object.keys(item.options).map(key => `
+                            <label class="quiz-option flex items-center p-3 rounded-lg cursor-pointer border border-gray-200" id="${item.id}-label-${key}">
+                                <input type="radio" name="${item.id}" value="${key}" class="hidden" onclick="checkAnswer('${item.id}', '${key}')">
+                                <div class="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center mr-3 font-bold text-gray-500 transition-colors" id="${item.id}-icon-${key}">
+                                    ${key}
+                                </div>
+                                <span class="text-gray-700 font-medium">${item.options[key]}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div id="${item.id}-expl" class="explanation-box">
+                        <p class="font-bold mb-1" id="${item.id}-status"></p>
+                        <p>${item.expl}</p>
+                    </div>
+                `;
+                form.appendChild(div);
+            });
+        }
+
+        function checkAnswer(questionId, selectedKey) {
+            const questionObj = quizData.find(q => q.id === questionId);
+            if (!questionObj) return;
+
+            const isCorrect = selectedKey === questionObj.ans;
+            
+            // Visual feedback for selected option
+            const selectedLabel = document.getElementById(`${questionId}-label-${selectedKey}`);
+            const selectedIcon = document.getElementById(`${questionId}-icon-${selectedKey}`);
+            
+            if (isCorrect) {
+                playCorrectSound(); // Sound enabled for Quiz only (internal synth)
+                selectedLabel.classList.add('correct');
+                selectedIcon.classList.add('border-green-500', 'text-green-600', 'bg-green-100');
+                selectedIcon.innerHTML = '<i class="fas fa-check"></i>';
+                userScore += 10;
+            } else {
+                playFailSound(); // Sound enabled for Quiz only (internal synth)
+                selectedLabel.classList.add('wrong');
+                selectedIcon.classList.add('border-red-500', 'text-red-600', 'bg-red-100');
+                selectedIcon.innerHTML = '<i class="fas fa-times"></i>';
+                
+                // Highlight the correct answer
+                const correctLabel = document.getElementById(`${questionId}-label-${questionObj.ans}`);
+                const correctIcon = document.getElementById(`${questionId}-icon-${questionObj.ans}`);
+                correctLabel.classList.add('correct');
+                correctIcon.classList.add('border-green-500', 'text-green-600', 'bg-green-100');
+                correctIcon.innerHTML = '<i class="fas fa-check"></i>';
+            }
+
+            const optionsDiv = document.getElementById(`${questionId}-options`);
+            const inputs = optionsDiv.querySelectorAll('input');
+            const labels = optionsDiv.querySelectorAll('label');
+            
+            inputs.forEach(input => input.disabled = true);
+            labels.forEach(label => label.classList.add('disabled'));
+
+            const explBox = document.getElementById(`${questionId}-expl`);
+            const statusText = document.getElementById(`${questionId}-status`);
+            
+            explBox.style.display = 'block';
+            if (isCorrect) {
+                explBox.style.borderLeftColor = '#10b981';
+                statusText.innerHTML = '<i class="fas fa-check-circle text-green-600"></i> Correct!';
+                statusText.className = "font-bold mb-1 text-green-700";
+            } else {
+                explBox.style.borderLeftColor = '#ef4444';
+                statusText.innerHTML = `<i class="fas fa-times-circle text-red-600"></i> Incorrect. The correct answer is ${questionObj.ans}.`;
+                statusText.className = "font-bold mb-1 text-red-700";
+            }
+        }
+
+        function showFinalScore() {
+            const scoreDisplay = document.getElementById('final-score');
+            const feedback = document.getElementById('feedback-msg');
+            const resultCard = document.getElementById('score-card');
+            
+            resultCard.classList.remove('hidden');
+            scoreDisplay.innerText = `${userScore} / 100`;
+            
+            if (userScore >= 80) {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#6366f1', '#fbbf24', '#10b981', '#f472b6']
+                });
+                
+                if (userScore === 100) {
+                    setTimeout(() => {
+                        confetti({
+                            particleCount: 100,
+                            angle: 60,
+                            spread: 55,
+                            origin: { x: 0 }
+                        });
+                        confetti({
+                            particleCount: 100,
+                            angle: 120,
+                            spread: 55,
+                            origin: { x: 1 }
+                        });
+                    }, 500);
+                    feedback.innerText = "Perfect! Your listening is amazing!";
+                } else {
+                    feedback.innerText = "Great job! Almost perfect.";
+                }
+            } else if (userScore >= 60) {
+                feedback.innerText = "Good pass. Review the text and try again.";
+            } else {
+                feedback.innerText = "Don't give up! Listen to the audio a few more times.";
+            }
+            
+            resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    </script>
+</body>
+</html>
